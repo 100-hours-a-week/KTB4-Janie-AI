@@ -1,9 +1,5 @@
-import os
-
-api_key = os.environ.get("GEMINI_API_KEY")
-
-EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-large"
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
-FOLDER_PATH = "/Users/jiwon/my-project/til"
-CHUNK_SIZE = 300
-CHUNK_OVERLAP = 60
+CHROMA_DB_DIR = './chroma_db'
+DATASET_NAME = 'maharshipandya/spotify-tracks-dataset'
+EMBEDDING_MODEL_NAME = 'intfloat/multilingual-e5-large'
+UPSTAGE_MODEL_NAME = "solar-pro3"
+OLLAMA_MODEL_NAME = 'qwen3.6'
