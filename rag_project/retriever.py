@@ -4,24 +4,25 @@ import uuid
 from googleapiclient.discovery import build
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
-
+from dotenv import load_dotenv
 from embedder import embeddings
 from chunker import chunk_documents
 
-youtube = build('youtube', 'v3', developerKey=os.getenv('YOUTUBE_API_KEY'))
-
 
 def spotify_search_with_check(user_question, params, vector_store, top_k=5, score_threshold=0.95):
-    artist = params.get('artist')
-    search_k = 200 if artist else top_k
+    artist_variants = params.get('artist_variants') or ([params['artist']] if params.get('artist') else [])
+    search_k = 1000 if artist_variants else top_k
     results_with_scores = vector_store.similarity_search_with_score(user_question, k=search_k)
     if not results_with_scores:
         return None, True
 
-    if artist:
-        artist_lower = artist.lower()
-        matched = [(doc, score) for doc, score in results_with_scores
-                   if artist_lower in doc.metadata.get("artists", "").lower()]
+    if artist_variants:
+        from rapidfuzz import fuzz
+        matched = []
+        for doc, score in results_with_scores:
+            dataset_artist = doc.metadata.get("artists", "").lower()
+            if any(fuzz.partial_ratio(v.lower(), dataset_artist) >= 85 for v in artist_variants):
+                matched.append((doc, score))
         if not matched:
             return None, True
         return [doc for doc, score in matched[:top_k]], False
@@ -32,9 +33,13 @@ def spotify_search_with_check(user_question, params, vector_store, top_k=5, scor
     return good_results, False
 
 
+youtube = build('youtube', 'v3', developerKey=os.getenv('YOUTUBE_API_KEY'))
+load_dotenv()
+
 # ---------- YouTube ----------
-def youtube_search(query_suffix, artist=None, song=None, max_results=30):
-    base = f"{artist or ''} {song or ''}".strip()
+def youtube_search(query_suffix, artist_variants=None, song=None, max_results=30):
+    artist_str = artist_variants[0] if artist_variants else ''
+    base = f"{artist_str or ''} {song or ''}".strip()
     query = f"{base} {query_suffix or ''}".strip()
     request = youtube.search().list(q=query, part='snippet', type='video', maxResults=max_results)
     return request.execute()

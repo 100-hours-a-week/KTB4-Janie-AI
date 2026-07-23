@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>음악 추천 챗봇</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+    max-width: 640px;
+    margin: 40px auto;
+    padding: 0 20px;
+    background: #f7f7f8;
+    color: #1a1a1a;
+  }
+  h2 {
+    text-align: center;
+    margin-bottom: 24px;
+    color: #000000;
+  }
+  #chat-container {
+    background: linear-gradient(to bottom, 135deg, #FFF5F8 0%, #FBE9EF 100%);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.227);
+    padding: 20px;
+    margin-bottom: 16px;
+}
+  #chat {
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    height: 500px;
+    overflow-y: auto;
+    margin-bottom: 0;
+    box-shadow: none; 
+    display: flex;
+    flex-direction: column;
+  }
+  .msg-row {
+    display: flex;
+    margin: 10px 0;
+  }
+  .msg-row.user { justify-content: flex-end; }
+  .msg-row.bot { justify-content: flex-start; }
+  .bubble {
+    max-width: 75%;
+    padding: 10px 16px;
+    border-radius: 18px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    font-size: 15px;
+  }
+  .user .bubble {
+    background: #E85D8A;
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .bot .bubble {
+    background: #F0F1F3;
+    color: #1a1a1a;
+    border-bottom-left-radius: 4px;
+  }
+  .bot .bubble a {
+    color: #d94b7a;
+    text-decoration: underline;
+    word-break: break-all;
+  }
+  .user .bubble a {
+    color: white;
+    text-decoration: underline;
+  }
+  .source-tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 999px;   
+  display: inline-block;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.source-tag.spotify {
+  background-color: #1DB954;
+  color: #ffffff;
+}
+.source-tag.youtube {
+  background-color: #CC0000;
+  color: #ffffff;
+}
+  .bubble.spotify strong {
+  color: #1DB954;
+}
+.bubble.youtube strong {
+  color: #FF0000;
+}
+  form {
+    display: flex;
+    gap: 8px;
+    background: transparent;      /* 이제 바깥이 배경 담당하니 투명하게 */
+    border-radius: 0;
+    padding: 12px 0 0 0;          /* 위쪽에만 여백, 채팅창과 구분되게 */
+    box-shadow: none;
+    border-top: 1px solid #eee;
+  }
+  input {
+    flex: 1;
+    padding: 12px 16px;
+    border-radius: 24px;
+    border: 1px solid #000000;
+    font-size: 15px;
+    outline: none;
+    background: #FBE9EF;
+  }
+  input:focus {
+    border-color: #E85D8A;
+  }
+  button {
+    padding: 12px 20px;
+    border-radius: 24px;
+    border: none;
+    background: #E85D8A;
+    color: white;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  button:hover { background: #d94b7a; }
+  button:disabled { background: #ccc; cursor: not-allowed; }
+  .empty-state {
+  margin-top: auto;
+  text-align: center;
+  color: #999;
+  padding: 20px 0;
+}
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+}
+.suggestion-chip {
+  background: #E85D8A;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.suggestion-chip:hover {
+  background: #d94b7a;
+}.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.msg-row.user .avatar {
+  background: #FBE9EF;
+}
+.msg-row.bot .avatar {
+  background: #F0F1F3;
+}
+.msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+@keyframes bounce-hint {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+input.bounce {
+  animation: bounce-hint 1.2s ease-in-out infinite;
+}
+</style>
+</head>
+<body>
+  <h2>🎵 </h2>
+  <div id="chat-container">
+  <div id="chat">
+    <div id="empty-state" class="empty-state">
+      <p>검색하고 싶은 음악을 입력하세요</p>
+      <div class="suggestions">
+        <button class="suggestion-chip" data-q="흐린 날 듣기 좋은 노래 추천해줘">흐린 날 듣기 좋은 노래</button>
+        <button class="suggestion-chip" data-q="신나는 케이팝 추천해줘">신나는 케이팝</button>
+        <button class="suggestion-chip" data-q="Ariana Grande 노래 추천해줘">Ariana Grande 노래</button>
+      </div>
+    </div>
+  </div>
+  <form id="chat-form">
+    <input id="question" class="bounce" placeholder="예: 흐린 날 듣기 좋은 노래 추천해줘" autocomplete="off" required />
+    <button type="submit" id="send-btn">전송</button>
+  </form>
+</div>
+
+<script>
+const chat = document.getElementById('chat');
+const form = document.getElementById('chat-form');
+const input = document.getElementById('question');
+const sendBtn = document.getElementById('send-btn');
+
+
+function linkify(text) {
+  const urlRegex = /(https?:\/\/[^\s)]+)/g;
+  return text.replace(urlRegex, (url) => {
+    const cleanUrl = url.replace(/[.,;)]+$/, ''); 
+    return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>`;
+  });
+}
+
+function boldify(text) {
+  return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+function addMessage(text, sender, source) {
+  const emptyState = document.getElementById('empty-state');
+  if (emptyState) emptyState.remove();
+
+  const row = document.createElement('div');
+  row.className = `msg-row ${sender}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = sender === 'user' ? '👤':'💬';
+  row.appendChild(avatar);
+
+  const bubble = document.createElement('div');
+  bubble.className = `bubble ${source ? source : ''}`;
+
+  if (source) {
+    const tag = document.createElement('span');
+    tag.className = `source-tag ${source}`;
+    tag.textContent = source === 'spotify' ? '🎧 Spotify' : '📺 YouTube';
+    bubble.appendChild(tag);
+  }
+
+  const textSpan = document.createElement('span');
+  const escaped = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  textSpan.innerHTML = boldify(linkify(escaped));
+  bubble.appendChild(textSpan);
+
+  if (sender === 'user') {
+    row.appendChild(bubble);
+    row.appendChild(avatar);
+  }else{
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+  }
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+  return row;
+}
+document.querySelectorAll('.suggestion-chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    input.value = btn.dataset.q;
+    form.requestSubmit();
+  });
+});
+
+input.addEventListener('input', () => {
+  if (input.value.length > 0) {
+    input.classList.remove('bounce');
+  } else {
+    input.classList.add('bounce');   // 다시 지우면 재개
+  }
+});
+
+input.addEventListener('focus', () => {
+  input.classList.remove('bounce');   // 클릭해서 포커스만 줘도 멈춤
+});
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const question = input.value.trim();
+  if (!question) return;
+
+  addMessage(question, 'user');
+  input.value = '';
+  sendBtn.disabled = true;
+  const loadingRow = addMessage('음악 추천 중...', 'bot');
+
+  try {
+    const res = await fetch('http://localhost:8000/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    });
+    const data = await res.json();
+    loadingRow.remove();
+    addMessage(data.answer, 'bot', data.source);
+  } catch (err) {
+    loadingRow.remove();
+    addMessage('오류가 발생했어요: ' + err.message, 'bot');
+  } finally {
+    sendBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

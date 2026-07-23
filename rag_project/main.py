@@ -14,14 +14,15 @@ def music_search(user_question):
         answer = chain.invoke({"document": context, "question": user_question})
         return {'source': 'spotify', 'answer': answer}
 
-    raw = youtube_search(query_suffix=params["search_style"], artist=params["artist"], song=params["song"])
+    raw = youtube_search(query_suffix=params["search_style"], artist_variants=params["artist_variants"], song=params["song"])
     yt_docs = description_to_documents(raw)
     filtered_docs = youtube_rag_search(yt_docs, params['search_style'], embeddings)
     answer = generate_youtube_answer(user_question, filtered_docs)
     return {'source': 'youtube', 'answer': answer}
 
 
+
 # ---------- 실행 (각 케이스 결과 1개씩만) ----------
 if __name__ == "__main__":
-    result = music_search('한로로 노래 추천해줘')
+    result = music_search('비 오는 날 듣기 좋은 노래 추천해줘')
     print(f"[{result['source']}]\n{result['answer']}")

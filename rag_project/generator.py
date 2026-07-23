@@ -4,8 +4,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_upstage import ChatUpstage
 from langchain_ollama import ChatOllama
-
-from config import UPSTAGE_MODEL_NAME, OLLAMA_MODEL_NAME
+from langchain_anthropic import ChatAnthropic
+from config import CLAUDE_MODEL_NAME, OLLAMA_MODEL_NAME
 
 load_dotenv()
 
@@ -13,11 +13,16 @@ load_dotenv()
 # llm
 def llm_fallback():
     try:
-        model = ChatUpstage(
-            api_key=os.getenv('UPSTAGE_API_KEY'),
-            model=os.getenv("UPSTAGE_MODEL", UPSTAGE_MODEL_NAME),
-            temperature=0)
-        test = model.invoke('test')
+        model = ChatAnthropic(
+            api_key=os.getenv('ANTHROPIC_API_KEY'),
+            model=CLAUDE_MODEL_NAME
+        )
+        model.invoke('test')
+        # model = ChatUpstage(
+        #     api_key=os.getenv('UPSTAGE_API_KEY'),
+        #     model=os.getenv("UPSTAGE_MODEL", UPSTAGE_MODEL_NAME),
+        #     temperature=0)
+        # test = model.invoke('test')
         return model
     except Exception as e:
         print(f'gemini api key X -> ollama{e}')
@@ -47,15 +52,21 @@ def extract_search_params(user_question, model):
     prompt_text = f"""당신은 음악 추천 시스템의 질의 분석기입니다.
 사용자 질문에서 다음 세 가지 정보만 추출해 JSON으로 답하세요. 다른 키는 절대 추가하지 마세요.
 
-- artist: 언급된 아티스트/가수 이름을 영문 표기로 변환해서 추출 (예: 아이유 → IU, 뉴진스 → NewJeans). 모르면 원문 그대로.
+- artist_variants:  언급된 아티스트의 표기 변형들을 배열로 추출 (예: "5SOS" → ["5SOS", "5 Seconds of Summer"])
+  없으면 빈 배열 []
 - song: 언급된 곡 제목 (없으면 null)
 - search_style: 원하는 영상 스타일이나 분위기를 짧은 영어/한국어 키워드로 (예: "live", "piano cover", "신나는", 없으면 null)
+ intent: 다음 중 하나
+  - "youtube_direct": 라이브 영상, 직캠, 무대 영상, 커버/편곡 버전, 플레이리스트/모음집 등
+    Spotify 카탈로그에 원천적으로 존재할 수 없는 콘텐츠를 요청하는 경우
+  - "spotify_first": 그 외 일반적인 곡/분위기/아티스트 추천 (기본값, 확실하지 않으면 우선 이걸로)
 
-반드시 이 세 개의 키만 포함한 JSON으로 답하세요: {{"artist": ..., "song": ..., "search_style": ...}}
+
+반드시 이 세 개의 키만 포함한 JSON으로 답하세요: {{"artist_variants": ..., "song": ..., "search_style": ...}}
 
 예시:
-질문: "아이유 좋은날 라이브로 듣고 싶어"
-답: {{"artist": "아이유", "song": "좋은날", "search_style": "live"}}
+질문: "5 Seconds of Summer의 youngblood 라이브로 듣고 싶어"
+답: {{"artist": "5 Seconds of Summer", "song": "youngblood", "search_style": "live"}}
 
 질문: "신나는 곡 추천해줘"
 답: {{"artist": null, "song": null, "search_style": "신나는"}}
@@ -67,7 +78,7 @@ def extract_search_params(user_question, model):
     cleaned = result.replace("```json", "").replace("```", "").strip()
     try:
         params = json.loads(cleaned)
-        params = {k: params.get(k) for k in ["artist", "song", "search_style"]}
+        params = {k: params.get(k) for k in ["artist_variants", "song", "search_style"]}
     except json.JSONDecodeError:
         params = {"artist": None, "song": None, "search_style": None}
     return params
