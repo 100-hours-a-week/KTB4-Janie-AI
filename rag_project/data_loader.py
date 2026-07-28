@@ -8,7 +8,6 @@ from config import DATASET_NAME
 def row_to_text(row):
     popular = "인기 있는" if row["popularity"] >= 50 else "숨겨진"
 
-    # energy와 valence를 분리해서 판단
     if row["energy"] > 0.6 and row["valence"] > 0.6:
         mood = "신나고 밝은"
     elif row["energy"] > 0.6 and row["valence"] <= 0.6:
@@ -44,5 +43,3 @@ def load_spotify_documents():
     print(len(docs))
     return docs
 
-
-docs = load_spotify_documents()

@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -9,8 +10,6 @@ from config import CLAUDE_MODEL_NAME, OLLAMA_MODEL_NAME
 
 load_dotenv()
 
-
-# llm
 def llm_fallback():
     try:
         model = ChatAnthropic(
@@ -18,11 +17,6 @@ def llm_fallback():
             model=CLAUDE_MODEL_NAME
         )
         model.invoke('test')
-        # model = ChatUpstage(
-        #     api_key=os.getenv('UPSTAGE_API_KEY'),
-        #     model=os.getenv("UPSTAGE_MODEL", UPSTAGE_MODEL_NAME),
-        #     temperature=0)
-        # test = model.invoke('test')
         return model
     except Exception as e:
         print(f'gemini api key X -> ollama{e}')
@@ -40,15 +34,36 @@ prompt = ChatPromptTemplate.from_messages([
     ('human', '[후보 곡 목록]\n{document}\n\n[질문]\n{question}')
 ])
 
-chain = prompt | llm | parser  # music_search에서 검증된 docs로 답변 생성할 때 씀
-
+chain = prompt | llm | parser  
 
 def format_docs(docs):
     return '\n\n'.join(d.page_content for d in docs)
 
+def _extract_text_content(response):
+    content = response.content
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict):
+                parts.append(block.get("text", ""))
+            else:
+                parts.append(str(block))
+        return "".join(parts)
+    return str(content)
 
 # ---------- 질문 분석 ----------
-def extract_search_params(user_question, model):
+def extract_search_params(user_question, model, history=None):
+    print('DEBUG generator.py received history:', history)
+    history_text = ""
+    if history:
+        recent = history[-1:]
+        history_text="\n\n[이전 대화 참고\n" + "\n".join(
+            f"- 질문: {h['question']}\n 답변 요약: {h['answer'][:150]}"
+            for h in recent
+        )
+
     prompt_text = f"""당신은 음악 추천 시스템의 질의 분석기입니다.
 사용자 질문에서 다음 세 가지 정보만 추출해 JSON으로 답하세요. 다른 키는 절대 추가하지 마세요.
 
@@ -59,37 +74,42 @@ def extract_search_params(user_question, model):
  intent: 다음 중 하나
   - "youtube_direct": 라이브 영상, 직캠, 무대 영상, 커버/편곡 버전, 플레이리스트/모음집 등
     Spotify 카탈로그에 원천적으로 존재할 수 없는 콘텐츠를 요청하는 경우
-  - "spotify_first": 그 외 일반적인 곡/분위기/아티스트 추천 (기본값, 확실하지 않으면 우선 이걸로)
+    **또는 사용자가 "유튜브"/"YouTube"/"유튭"이라고 검색 플랫폼을 명시적으로 지정한 경우**
+  - "spotify_first": 그 외 모든 경우 (기본값). 사용자가 "스포티파이"/"Spotify"라고 
+    플랫폼을 명시했어도 이 값 사용 (어차피 기본 동작이 Spotify 우선 시도이므로)
+    그 외 일반적인 곡/분위기/아티스트 추천 (기본값, 확실하지 않으면 우선 이걸로)
 
+만약 지금 질문이 "방금 말한 가수", "이 노래", "그 영상" 처럼 이전 대화를 참조하고 있다면,
+아래 [이전 대화 참고]에서 언급된 아티스트/곡을 찾아 artist_variants와 song에 채우세요.
+{history_text}
 
-반드시 이 세 개의 키만 포함한 JSON으로 답하세요: {{"artist_variants": ..., "song": ..., "search_style": ...}}
+반드시 이 네 개의 키만 포함한 JSON으로 답하세요: {{"artist_variants": ..., "song": ..., "search_style": ..., "intent": ...}}
 
-예시:
 질문: "5 Seconds of Summer의 youngblood 라이브로 듣고 싶어"
-답: {{"artist": "5 Seconds of Summer", "song": "youngblood", "search_style": "live"}}
+답: {{"artist": "5 Seconds of Summer", "song": "youngblood", "search_style": "live", "intent": "youtube_direct"}}
 
 질문: "신나는 곡 추천해줘"
-답: {{"artist": null, "song": null, "search_style": "신나는"}}
+답: {{"artist": null, "song": null, "search_style": "신나는", "intent": "spotify_first"}}
 
 질문: "{user_question}"
 답:"""
-    import json
-    result = model.invoke(prompt_text).content
+    response = model.invoke(prompt_text)
+    result = _extract_text_content(response)
     cleaned = result.replace("```json", "").replace("```", "").strip()
     try:
-        params = json.loads(cleaned)
-        params = {k: params.get(k) for k in ["artist_variants", "song", "search_style"]}
+       params = json.loads(cleaned)
+       params = {k: params.get(k) for k in ["artist_variants", "song", "search_style", "intent"]}
     except json.JSONDecodeError:
-        params = {"artist": None, "song": None, "search_style": None}
+       params = {'artist_variants': [], "song":None, "search_style": None, "intent":"spotify_first"}
     return params
 
 
 youtube_prompt = ChatPromptTemplate.from_messages([
     ('system', '너는 음악 추천 챗봇이야. 아래 영상 목록만 참고해서 사용자 질문에 답변해. '
-               '목록에 없는 곡이나 영상은 절대 지어내서 언급하지 마. '
+               '목록에 없는 곡이나 영상은 절대 지어내서 언급하지마. '
                '영상 목록에 있는 것만 근거로 답변하고, 목록에 충분한 정보가 없으면 있는 것만 소개해. '
-               'URL이나 링크는 답변에 포함시키지 마. '
-               '영상 제목은 원문 그대로 정확히 언급해줘 (줄이거나 바꾸지 마).'),
+               'URL이나 링크는 답변에 포함시키지마. '
+               '영상 제목은 원문 그대로 정확히 언급해줘 (줄이거나 바꾸지마).'),
     ('human', '[영상 목록]\n{document}\n\n[질문]\n{question}')
 ])
 youtube_chain = youtube_prompt | llm | parser
@@ -99,9 +119,12 @@ def format_docs_with_title(docs):
     return "\n\n".join(f"제목: {d.metadata['title']}\n내용: {d.page_content}" for d in docs)
 
 
-def generate_youtube_answer(question, docs):
+def generate_youtube_answer(question, docs, resolved_artist=None):
     context = format_docs_with_title(docs)
-    answer = youtube_chain.invoke({"document": context, "question": question})
+    effective_question = question
+    if resolved_artist:
+        effective_question = f"{resolved_artist}에 대한 질문: {question}"
+    answer = youtube_chain.invoke({"document": context, "question": effective_question})
     seen_titles = set()
 
     for doc in docs:

@@ -5,13 +5,12 @@ from googleapiclient.discovery import build
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
-from embedder import embeddings
 from chunker import chunk_documents
 
 
 def spotify_search_with_check(user_question, params, vector_store, top_k=5, score_threshold=0.95):
     artist_variants = params.get('artist_variants') or ([params['artist']] if params.get('artist') else [])
-    search_k = 1000 if artist_variants else top_k
+    search_k = 5000 if artist_variants else top_k
     results_with_scores = vector_store.similarity_search_with_score(user_question, k=search_k)
     if not results_with_scores:
         return None, True
@@ -26,7 +25,7 @@ def spotify_search_with_check(user_question, params, vector_store, top_k=5, scor
         if not matched:
             return None, True
         return [doc for doc, score in matched[:top_k]], False
-    # 아티스트 지정 안 한 경우(유사한 것 담는 list)
+
     good_results = [doc for doc, score in results_with_scores if score < score_threshold]
     if not good_results:
         return None, True
@@ -57,7 +56,7 @@ def description_to_documents(youtube_response):
     for item in youtube_response['items']:
         video_id = item.get('id', {}).get('videoId')
         if not video_id:
-            continue  # videoId 없는 항목(채널/재생목록 등)은 건너뜀
+            continue 
 
         title = item['snippet']['title']
         desc = clean_description(item['snippet']['description'])
@@ -72,7 +71,21 @@ def description_to_documents(youtube_response):
 def youtube_rag_search(docs, search_style, embeddings, chunk_size=400, chunk_overlap=80, top_k=3):
     split_docs = chunk_documents(docs, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
-    temp_collection_name = f"temp_{uuid.uuid4().hex[:8]}"  # collection_name 지정해 이전 정보 재사용 방지
+    temp_collection_name = f"temp_{uuid.uuid4().hex[:8]}" 
     temp_vectorstore = Chroma.from_documents(split_docs, embeddings, collection_name=temp_collection_name)
     filtered = temp_vectorstore.similarity_search(search_style or '관련영상', k=top_k)
     return filtered
+
+
+GENERIC_EXCLUDE_KEYWORDS = [
+    'interview', '인터뷰', 'reaction', '리액션', 'vlog', '브이로그', 'behind', '비하인드', 'talk', '토크,' '먹방', '예능'
+]
+
+def is_relevant_video(title, search_style):
+    title_lower = title.lower()
+
+    style_lower = (search_style or '').lower()
+    exclude_list = [kw for kw in GENERIC_EXCLUDE_KEYWORDS
+                    if kw not in style_lower]
+
+    return not any(kw in title_lower for kw in exclude_list)

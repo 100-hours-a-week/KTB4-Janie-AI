@@ -8,6 +8,7 @@ from typing import TypedDict, Literal
 
 class MusicState(TypedDict):
     question: str
+    history: list
     intent: str
     artist_variants: list
     song: str
@@ -19,7 +20,7 @@ class MusicState(TypedDict):
 
 # node
 def detect_intent_node(state: MusicState) -> dict:
-    params = extract_search_params(state['question'], llm)
+    params = extract_search_params(state['question'], llm, state.get('history'))
     return {
         'intent': params.get('intent', 'spotify_first'),
         'artist_variants': params.get('artist_variants') or [],
@@ -48,8 +49,9 @@ def youtube_search_node(state: MusicState) -> dict:
         song = state['song'],
     )
     yt_docs = description_to_documents(raw)
+    resolved_artist = state['artist_variants'][0] if state['artist_variants'] else None
     filtered_docs = youtube_rag_search(yt_docs, state['search_style'], embeddings)
-    answer = generate_youtube_answer(state['question'], filtered_docs)
+    answer = generate_youtube_answer(state['question'], filtered_docs, resolved_artist=resolved_artist)
     return {'answer': answer, 'source': 'youtube'}
 
 # router
@@ -96,10 +98,12 @@ builder.add_edge('generate_spotify_answer_node', END)
 
 graph = builder.compile()
 # ---------- 실행 ----------
-def music_search(user_question: str) -> dict:
-    result = graph.invoke({"question": user_question})
+def music_search(user_question: str, history: list = None) -> dict:
+    print("DEBUG main.py received history:", history)
+    result = graph.invoke({"question": user_question, 'history': history or []})
     return {"source": result["source"], "answer": result["answer"]}
 
 if __name__ == "__main__":
     result = music_search('비 오는 날 듣기 좋은 노래 추천해줘')
     print(f"[{result['source']}]\n{result['answer']}")
+
