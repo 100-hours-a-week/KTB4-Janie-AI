@@ -54,6 +54,12 @@ def youtube_search_node(state: MusicState) -> dict:
     answer = generate_youtube_answer(state['question'], filtered_docs, resolved_artist=resolved_artist)
     return {'answer': answer, 'source': 'youtube'}
 
+def out_of_scope_node(state: MusicState) -> dict:
+    return {
+        'answer': '저는 음악 추천을 도와드리는 챗봇이에요. 듣고 싶은 분위기나 아티스트를 말씀해주시면 곡을 찾아드릴게요!',
+        'source': 'spotify'
+    }
+
 # router
 def route_intent(state: MusicState) ->Literal['youtube', 'spotify']:
     if state['intent'] == 'youtube_direct':
@@ -67,6 +73,13 @@ def route_after_spotify(state: MusicState) -> Literal['youtube', 'generate_spoti
     else:
         return 'generate_spotify'
 
+def route_intent(state) -> Literal['youtube', 'spotify', 'out_of_scope']:
+    if state['intent'] == 'out_of_scope':
+        return 'out_of_scope'
+    elif state['intent'] == 'youtube_direct':
+        return 'youtube'
+    else:
+        return 'spotify'
 # Graph 구성
 builder = StateGraph(MusicState)
 

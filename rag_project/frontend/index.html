@@ -472,7 +472,7 @@ function addMessage(text, sender, source, persist = true) {
   const bubble = document.createElement('div');
   bubble.className = `bubble ${source ? source : ''}`;
 
-  if (source) {
+  if (source && source !== 'none') {
     const tag = document.createElement('span');
     tag.className = `source-tag ${source}`;
     tag.textContent = source === 'spotify' ? '🎧 Spotify' : '📺 YouTube';

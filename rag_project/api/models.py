@@ -10,6 +10,6 @@ class SearchRequest(BaseModel):
     history: list[HistoryItem] = []
 
 class SearchResponse(BaseModel):
-    source: Literal['spotify', 'youtube']
+    source: Literal['spotify', 'youtube', 'none']
     answer: str
 
