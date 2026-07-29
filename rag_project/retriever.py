@@ -31,9 +31,8 @@ def spotify_search_with_check(user_question, params, vector_store, top_k=5, scor
         return None, True
     return good_results, False
 
-
-youtube = build('youtube', 'v3', developerKey=os.getenv('YOUTUBE_API_KEY'))
 load_dotenv()
+youtube = build('youtube', 'v3', developerKey=os.getenv('YOUTUBE_API_KEY'))
 
 # ---------- YouTube ----------
 def youtube_search(query_suffix, artist_variants=None, song=None, max_results=30):
@@ -76,16 +75,3 @@ def youtube_rag_search(docs, search_style, embeddings, chunk_size=400, chunk_ove
     filtered = temp_vectorstore.similarity_search(search_style or '관련영상', k=top_k)
     return filtered
 
-
-GENERIC_EXCLUDE_KEYWORDS = [
-    'interview', '인터뷰', 'reaction', '리액션', 'vlog', '브이로그', 'behind', '비하인드', 'talk', '토크,' '먹방', '예능'
-]
-
-def is_relevant_video(title, search_style):
-    title_lower = title.lower()
-
-    style_lower = (search_style or '').lower()
-    exclude_list = [kw for kw in GENERIC_EXCLUDE_KEYWORDS
-                    if kw not in style_lower]
-
-    return not any(kw in title_lower for kw in exclude_list)

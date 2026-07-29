@@ -17,6 +17,7 @@ class MusicState(TypedDict):
     need_fallback: bool
     answer: str
     source: str
+    
 
 # node
 def detect_intent_node(state: MusicState) -> dict:
@@ -57,16 +58,11 @@ def youtube_search_node(state: MusicState) -> dict:
 def out_of_scope_node(state: MusicState) -> dict:
     return {
         'answer': '저는 음악 추천을 도와드리는 챗봇이에요. 듣고 싶은 분위기나 아티스트를 말씀해주시면 곡을 찾아드릴게요!',
-        'source': 'spotify'
+        'source': 'none'
     }
 
+
 # router
-def route_intent(state: MusicState) ->Literal['youtube', 'spotify']:
-    if state['intent'] == 'youtube_direct':
-        return 'youtube' 
-    else:
-        return 'spotify'
-    
 def route_after_spotify(state: MusicState) -> Literal['youtube', 'generate_spotify']:
     if state['need_fallback']:
         return 'youtube'
@@ -87,6 +83,7 @@ builder.add_node('detect_intent_node', detect_intent_node)
 builder.add_node('spotify_search_node', spotify_search_node)
 builder.add_node('youtube_search_node', youtube_search_node)
 builder.add_node('generate_spotify_answer_node', generate_spotify_answer_node)
+builder.add_node('out_of_scope_node', out_of_scope_node)
 
 builder.add_edge(START, 'detect_intent_node')
 
@@ -94,7 +91,8 @@ builder.add_conditional_edges(
     'detect_intent_node',
     route_intent,
     {'youtube': 'youtube_search_node',
-     'spotify': 'spotify_search_node'},
+     'spotify': 'spotify_search_node',
+     'out_of_scope': 'out_of_scope_node'},
 )
 
 builder.add_conditional_edges(
@@ -108,15 +106,15 @@ builder.add_conditional_edges(
 
 builder.add_edge('youtube_search_node', END)
 builder.add_edge('generate_spotify_answer_node', END)
+builder.add_edge('out_of_scope_node', END)
 
 graph = builder.compile()
 # ---------- 실행 ----------
 def music_search(user_question: str, history: list = None) -> dict:
-    print("DEBUG main.py received history:", history)
+    #print("DEBUG main.py received history:", history)
     result = graph.invoke({"question": user_question, 'history': history or []})
     return {"source": result["source"], "answer": result["answer"]}
-
-if __name__ == "__main__":
-    result = music_search('비 오는 날 듣기 좋은 노래 추천해줘')
-    print(f"[{result['source']}]\n{result['answer']}")
+# if __name__ == "__main__":
+#     result = music_search('비 오는 날 듣기 좋은 노래 추천해줘')
+#     print(f"[{result['source']}]\n{result['answer']}")
 
