@@ -5,7 +5,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - ../.env
     volumes:
       - ./chroma_db:/app/chroma_db
       - hf_cache:/root/.cache/huggingface
