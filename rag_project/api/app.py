@@ -38,7 +38,7 @@ def search(request: SearchRequest):
         logger.exception("music_search failed | question=%r", request.question)
         raise  
 
-app.mount('/static', StaticFiles(directory='frontend', html=True), name='static')
+app.mount('/', StaticFiles(directory='frontend', html=True), name='static')
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
