@@ -522,6 +522,7 @@ function bindSuggestionChips() {
 }
 
 async function sendStreamingMessage(question, history) {
+  const loadingRow = addMessage('음악 추천 중...', 'bot', null, false);
   const res = await fetch('/search/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -551,6 +552,7 @@ async function sendStreamingMessage(question, history) {
       const event = JSON.parse(payload);
       if (event.type === 'meta') {
         source = event.source;
+        loadingRow.remove();   
         answerRow = addMessage('', 'bot', source, false);  
       } else if (event.type === 'token') {
         fullText += event.text;
