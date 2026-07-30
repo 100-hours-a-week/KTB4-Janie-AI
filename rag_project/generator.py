@@ -74,9 +74,7 @@ def extract_search_params(user_question, model, history=None):
  - intent: 다음 중 하나
   - "youtube_direct": 요청한 콘텐츠가 "Spotify 같은 음원 스트리밍 카탈로그에
     존재할 수 없는 종류"인 경우.
-    Spotify 카탈로그는 공식 발매된 개별 음원만 담고 있으며, 영상 콘텐츠,
-    팬이 만든 2차 창작물, 여러 곡을 묶은 편집물, 그리고 데이터 수집 시점 이후에
-    나온 곡은 포함하지 않습니다.
+    Spotify 카탈로그는 공식 발매된 개별 음원만 담고 있으며, 영상 콘텐츠, 팬이 만든 2차 창작물, 여러 곡을 묶은 편집물, 그리고 데이터 수집 시점 이후에 나온 곡은 포함하지 않습니다.
     (예: 라이브 영상, 커버/편곡, 플레이리스트, 최신 발매곡 등)
     또는 사용자가 유튜브를 검색 플랫폼으로 명시한 경우.
   - "spotify_first": 그 외 모든 경우 (기본값, 애매하면 이걸로)
@@ -142,3 +140,11 @@ def generate_youtube_answer(question, docs, resolved_artist=None):
         if title in answer:
             answer = answer.replace(title, f"{title} ({url})")
     return answer
+
+
+async def stream_spotify_answer(context: str, question: str):
+    async for chunk in chain.astream({'document': context, 'question': question}):
+        yield chunk
+async def stream_youtube_answer(context: str, question: str):
+    async for chunk in youtube_chain.astream({'document': context, 'question': question}):
+        yield chunk

@@ -6,6 +6,7 @@ from langchain_core.documents import Document
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
 from chunker import chunk_documents
+from rapidfuzz import fuzz
 
 
 def spotify_search_with_check(user_question, params, vector_store, top_k=5, score_threshold=0.95):
@@ -16,11 +17,14 @@ def spotify_search_with_check(user_question, params, vector_store, top_k=5, scor
         return None, True
 
     if artist_variants:
-        from rapidfuzz import fuzz
+        variants_lower = {v.lower() for v in artist_variants}
         matched = []
         for doc, score in results_with_scores:
-            dataset_artist = doc.metadata.get("artists", "").lower()
-            if any(fuzz.partial_ratio(v.lower(), dataset_artist) >= 85 for v in artist_variants):
+            individuals_artists = {a.strip().lower() for a in doc.metadata.get('artists', '').split(';')}
+            #dataset_artist = doc.metadata.get("artists", "").lower()
+            if variants_lower & individuals_artists:
+                matched.append((doc, score))
+            if any(fuzz.ratio(v, a) >= 90 for v in variants_lower for a in individuals_artists):
                 matched.append((doc, score))
         if not matched:
             return None, True

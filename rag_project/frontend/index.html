@@ -482,6 +482,7 @@ function addMessage(text, sender, source, persist = true) {
   }
 
   const textSpan = document.createElement('span');
+  textSpan.className = 'answer-text'; 
   const escaped = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   textSpan.innerHTML = boldify(linkify(escaped));
   bubble.appendChild(textSpan);
@@ -520,6 +521,59 @@ function bindSuggestionChips() {
   });
 }
 
+async function sendStreamingMessage(question, history) {
+  const res = await fetch('/search/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, history })
+  });
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let source = null;
+  let answerRow = null;
+  let fullText = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n\n');
+    buffer = lines.pop();  // 마지막 미완성 조각은 다음 루프로 넘김
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const payload = line.slice(6);
+      if (payload === '[DONE]') continue;
+
+      const event = JSON.parse(payload);
+      if (event.type === 'meta') {
+        source = event.source;
+        answerRow = addMessage('', 'bot', source, false);  
+      } else if (event.type === 'token') {
+        fullText += event.text;
+        updateMessageText(answerRow, fullText);      
+      }
+    }
+  }
+  const session = getCurrentSession();
+  if (session) {
+    session.messages.push({ text: fullText, sender: 'bot', source });
+    saveSessions();
+    renderHistory();
+  }
+}
+
+
+function updateMessageText(row, text) {
+  const textSpan = row.querySelector('.answer-text');
+  const escaped = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  textSpan.innerHTML = boldify(linkify(escaped));
+  chat.scrollTop = chat.scrollHeight;
+}
+
 // ---------- 이벤트 ----------
 newChatBtn.addEventListener('click', () => {
   startNewChat();
@@ -536,11 +590,11 @@ form.addEventListener('submit', async (e) => {
   if (!question) return;
 
   const session = getCurrentSession();
-  const history=[];
+  const history = [];
   if (session) {
-    for (let i = 0; i < session.messages.length -1; i++){
-      if (session.messages[i].sender === 'user' && session.messages[i + 1].sender === 'bot'){
-        history.push({ question: session.messages[i].text, answer: session.messages[i + 1].text})
+    for (let i = 0; i < session.messages.length - 1; i++) {
+      if (session.messages[i].sender === 'user' && session.messages[i + 1].sender === 'bot') {
+        history.push({ question: session.messages[i].text, answer: session.messages[i + 1].text });
       }
     }
   }
@@ -548,19 +602,10 @@ form.addEventListener('submit', async (e) => {
   addMessage(question, 'user');
   input.value = '';
   sendBtn.disabled = true;
-  const loadingRow = addMessage('음악 추천 중...', 'bot', null, false);
 
   try {
-    const res = await fetch('/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, history: history.slice(-1)})
-    });
-    const data = await res.json();
-    loadingRow.remove();
-    addMessage(data.answer, 'bot', data.source);
+    await sendStreamingMessage(question, history.slice(-1));
   } catch (err) {
-    loadingRow.remove();
     addMessage('오류가 발생했어요: ' + err.message, 'bot', null, false);
   } finally {
     sendBtn.disabled = false;

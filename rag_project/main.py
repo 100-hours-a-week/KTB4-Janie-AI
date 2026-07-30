@@ -1,6 +1,6 @@
 from vectorstore import vector_store
 from embedder import embeddings
-from generator import llm, chain, format_docs, extract_search_params, generate_youtube_answer
+from generator import llm, chain, format_docs, extract_search_params, generate_youtube_answer, format_docs, format_docs_with_title, stream_spotify_answer, stream_youtube_answer
 from retriever import spotify_search_with_check, youtube_search, description_to_documents, youtube_rag_search
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Literal
@@ -61,7 +61,6 @@ def out_of_scope_node(state: MusicState) -> dict:
         'source': 'none'
     }
 
-
 # router
 def route_after_spotify(state: MusicState) -> Literal['youtube', 'generate_spotify']:
     if state['need_fallback']:
@@ -76,6 +75,7 @@ def route_intent(state) -> Literal['youtube', 'spotify', 'out_of_scope']:
         return 'youtube'
     else:
         return 'spotify'
+    
 # Graph 구성
 builder = StateGraph(MusicState)
 
@@ -114,7 +114,40 @@ def music_search(user_question: str, history: list = None) -> dict:
     #print("DEBUG main.py received history:", history)
     result = graph.invoke({"question": user_question, 'history': history or []})
     return {"source": result["source"], "answer": result["answer"]}
-# if __name__ == "__main__":
-#     result = music_search('비 오는 날 듣기 좋은 노래 추천해줘')
-#     print(f"[{result['source']}]\n{result['answer']}")
 
+async def music_search_stream(user_question: str, history: list=None):
+    params = extract_search_params(user_question, llm, history)
+    intent = params.get('intent', 'spotify_first')
+
+    if intent == 'out_of_scope':
+        yield {'type': 'meta', 'source': 'none'}
+        yield {'type': 'token', 'text': '저는 음악 추천을 도와드리는 챗봇이에요.'}
+        return
+    if intent == 'youtube_direct':
+        raw = youtube_search(query_suffix=params['search_style'],
+                              artist_variants=params['artist_variants'], song=params['song'])
+        yt_docs = description_to_documents(raw)
+        filtered_docs = youtube_rag_search(yt_docs, params['search_style'], embeddings)
+        context = format_docs_with_title(filtered_docs)
+        yield {"type": "meta", "source": "youtube"}
+        async for chunk in stream_youtube_answer(context, user_question):
+            yield {"type": "token", "text": chunk}
+        return
+
+    # spotify_first
+    results, need_fallback = spotify_search_with_check(user_question, params, vector_store)
+    if not need_fallback:
+        context = format_docs(results)
+        yield {"type": "meta", "source": "spotify"}
+        async for chunk in stream_spotify_answer(context, user_question):
+            yield {"type": "token", "text": chunk}
+        return
+
+    raw = youtube_search(query_suffix=params['search_style'],
+                          artist_variants=params['artist_variants'], song=params['song'])
+    yt_docs = description_to_documents(raw)
+    filtered_docs = youtube_rag_search(yt_docs, params['search_style'], embeddings)
+    context = format_docs_with_title(filtered_docs)
+    yield {"type": "meta", "source": "youtube"}
+    async for chunk in stream_youtube_answer(context, user_question):
+        yield {"type": "token", "text": chunk}
