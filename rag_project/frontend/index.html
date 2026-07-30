@@ -551,7 +551,7 @@ form.addEventListener('submit', async (e) => {
   const loadingRow = addMessage('음악 추천 중...', 'bot', null, false);
 
   try {
-    const res = await fetch('http://localhost:8000/search', {
+    const res = await fetch('/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question, history: history.slice(-1)})
