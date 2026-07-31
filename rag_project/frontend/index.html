@@ -557,6 +557,9 @@ async function sendStreamingMessage(question, history) {
       } else if (event.type === 'token') {
         fullText += event.text;
         updateMessageText(answerRow, fullText);      
+      } else if (event.type === 'final'){
+        fullText = event.text;
+        updateMessageText(answerRow, fullText)
       }
     }
   }

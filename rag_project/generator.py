@@ -129,8 +129,10 @@ def generate_youtube_answer(question, docs, resolved_artist=None):
     if resolved_artist:
         effective_question = f"{resolved_artist}에 대한 질문: {question}"
     answer = youtube_chain.invoke({"document": context, "question": effective_question})
-    seen_titles = set()
+    return insert_links(answer, docs)
 
+def insert_links(answer: str, docs) -> str:
+    seen_titles = set()
     for doc in docs:
         title = doc.metadata['title']
         if title in seen_titles:

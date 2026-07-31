@@ -1,6 +1,6 @@
 from vectorstore import vector_store
 from embedder import embeddings
-from generator import llm, chain, format_docs, extract_search_params, generate_youtube_answer, format_docs, format_docs_with_title, stream_spotify_answer, stream_youtube_answer
+from generator import llm, chain, format_docs, extract_search_params, generate_youtube_answer, format_docs, format_docs_with_title, stream_spotify_answer, stream_youtube_answer, insert_links
 from retriever import spotify_search_with_check, youtube_search, description_to_documents, youtube_rag_search
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Literal
@@ -130,9 +130,16 @@ async def music_search_stream(user_question: str, history: list=None):
         filtered_docs = youtube_rag_search(yt_docs, params['search_style'], embeddings)
         context = format_docs_with_title(filtered_docs)
         yield {"type": "meta", "source": "youtube"}
+        full_text = ''
         async for chunk in stream_youtube_answer(context, user_question):
+            full_text += chunk
             yield {"type": "token", "text": chunk}
+
+        linked_answer = insert_links(full_text, filtered_docs)
+        yield {'type': 'final', 'text': linked_answer}
         return
+
+        
 
     # spotify_first
     results, need_fallback = spotify_search_with_check(user_question, params, vector_store)
@@ -142,12 +149,16 @@ async def music_search_stream(user_question: str, history: list=None):
         async for chunk in stream_spotify_answer(context, user_question):
             yield {"type": "token", "text": chunk}
         return
-
+    
     raw = youtube_search(query_suffix=params['search_style'],
                           artist_variants=params['artist_variants'], song=params['song'])
     yt_docs = description_to_documents(raw)
     filtered_docs = youtube_rag_search(yt_docs, params['search_style'], embeddings)
     context = format_docs_with_title(filtered_docs)
     yield {"type": "meta", "source": "youtube"}
+    full_text = ''
     async for chunk in stream_youtube_answer(context, user_question):
+        full_text += chunk
         yield {"type": "token", "text": chunk}
+    linked_answer = insert_links(full_text, filtered_docs)
+    yield {'type': 'final', 'text': linked_answer}
