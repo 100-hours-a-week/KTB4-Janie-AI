@@ -1,10 +1,7 @@
 from datasets import load_dataset
 from langchain_core.documents import Document
-
 from config import DATASET_NAME
 
-
-# popularity, danceability .... 수치 -> 텍스트화 : row_to_text 함수
 def row_to_text(row):
     popular = "인기 있는" if row["popularity"] >= 50 else "숨겨진"
 
