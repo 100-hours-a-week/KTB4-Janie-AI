@@ -1,4 +1,4 @@
-# 🎵 음악 추천 RAG 챗봇
+# 음악 추천 RAG 
 
 Spotify 오디오 특성 기반 RAG와 YouTube 실시간 검색 기반 RAG를 LangGraph로 라우팅하는
 음악 추천 챗봇. Spotify 데이터셋에 없는 아티스트/콘텐츠(라이브, 커버, 플레이리스트 등)는
