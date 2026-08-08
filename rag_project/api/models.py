@@ -8,6 +8,7 @@ class HistoryItem(BaseModel):
 class SearchRequest(BaseModel):
     question: str
     history: list[HistoryItem] = []
+    taste_genres: list[str] = []
 
 class SearchResponse(BaseModel):
     source: Literal['spotify', 'youtube', 'none']

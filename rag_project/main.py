@@ -4,7 +4,13 @@ from generator import llm, chain, format_docs, extract_search_params, generate_y
 from retriever import spotify_search_with_check, youtube_search, description_to_documents, youtube_rag_search
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Literal
-
+from generator import (
+    llm, chain, format_docs, extract_search_params,
+    format_docs_with_title, stream_spotify_answer, stream_youtube_answer,
+    insert_links, force_youtube_if_newness,  
+)
+import langfeather
+langfeather.configure(endpoint="http://127.0.0.1:4319")
 
 class MusicState(TypedDict):
     question: str
@@ -22,8 +28,9 @@ class MusicState(TypedDict):
 # node
 def detect_intent_node(state: MusicState) -> dict:
     params = extract_search_params(state['question'], llm, state.get('history'))
+    intent = force_youtube_if_newness(state['question'], params.get('intent', 'spotify_first'))
     return {
-        'intent': params.get('intent', 'spotify_first'),
+        'intent': intent,
         'artist_variants': params.get('artist_variants') or [],
         'song': params.get('song'),
         'search_style': params.get('search_style')
@@ -109,25 +116,37 @@ builder.add_edge('generate_spotify_answer_node', END)
 builder.add_edge('out_of_scope_node', END)
 
 graph = builder.compile()
+graph = langfeather.wrap_runnable(graph, name='music_rag_graph')
 # ---------- 실행 ----------
 def music_search(user_question: str, history: list = None) -> dict:
     #print("DEBUG main.py received history:", history)
-    result = graph.invoke({"question": user_question, 'history': history or []})
+    result = graph.invoke({"question": user_question, 'history': history or []},
+                          {"configurable": {"thread_id": "default-session"}})
     return {"source": result["source"], "answer": result["answer"]}
 
-async def music_search_stream(user_question: str, history: list=None):
+@langfeather.observe(name='music_search_stream')
+async def music_search_stream(user_question: str, history: list = None, taste_genres: list = None):
     params = extract_search_params(user_question, llm, history)
     intent = params.get('intent', 'spotify_first')
+    intent = force_youtube_if_newness(user_question, intent)
 
     if intent == 'out_of_scope':
         yield {'type': 'meta', 'source': 'none'}
         yield {'type': 'token', 'text': '저는 음악 추천을 도와드리는 챗봇이에요.'}
         return
+
     if intent == 'youtube_direct':
-        raw = youtube_search(query_suffix=params['search_style'],
+        query_suffix = params['search_style'] or user_question
+        raw = youtube_search(query_suffix=query_suffix,
                               artist_variants=params['artist_variants'], song=params['song'])
         yt_docs = description_to_documents(raw)
-        filtered_docs = youtube_rag_search(yt_docs, params['search_style'], embeddings)
+        filtered_docs = youtube_rag_search(yt_docs, query_suffix, embeddings)
+
+        if not filtered_docs:
+            yield {"type": "meta", "source": "youtube"}
+            yield {"type": "token", "text": "관련된 영상을 찾지 못했어요. 다른 키워드로 다시 질문해주시겠어요?"}
+            return
+
         context = format_docs_with_title(filtered_docs)
         yield {"type": "meta", "source": "youtube"}
         full_text = ''
@@ -139,26 +158,40 @@ async def music_search_stream(user_question: str, history: list=None):
         yield {'type': 'final', 'text': linked_answer}
         return
 
-        
-
     # spotify_first
-    results, need_fallback = spotify_search_with_check(user_question, params, vector_store)
+    results, need_fallback = spotify_search_with_check(
+        user_question, params, vector_store, taste_genres=taste_genres
+    )
+
     if not need_fallback:
         context = format_docs(results)
-        yield {"type": "meta", "source": "spotify"}
+        matched_genres = list({doc.metadata.get('genre') for doc in results if doc.metadata.get('genre')})
+        yield {"type": "meta", "source": "spotify", "genres": matched_genres}
+        full_text = ''
         async for chunk in stream_spotify_answer(context, user_question):
+            full_text += chunk
             yield {"type": "token", "text": chunk}
+        yield {'type': 'final', 'text': full_text}
         return
-    
-    raw = youtube_search(query_suffix=params['search_style'],
+
+    # Spotify 폴백 → YouTube
+    query_suffix = params['search_style'] or user_question
+    raw = youtube_search(query_suffix=query_suffix,
                           artist_variants=params['artist_variants'], song=params['song'])
     yt_docs = description_to_documents(raw)
-    filtered_docs = youtube_rag_search(yt_docs, params['search_style'], embeddings)
+    filtered_docs = youtube_rag_search(yt_docs, query_suffix, embeddings)
+
+    if not filtered_docs:
+        yield {"type": "meta", "source": "youtube"}
+        yield {"type": "token", "text": "관련된 영상을 찾지 못했어요. 다른 키워드로 다시 질문해주시겠어요?"}
+        return
+
     context = format_docs_with_title(filtered_docs)
     yield {"type": "meta", "source": "youtube"}
     full_text = ''
     async for chunk in stream_youtube_answer(context, user_question):
         full_text += chunk
         yield {"type": "token", "text": chunk}
+
     linked_answer = insert_links(full_text, filtered_docs)
     yield {'type': 'final', 'text': linked_answer}

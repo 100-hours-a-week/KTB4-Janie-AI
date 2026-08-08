@@ -2,6 +2,9 @@ import sys
 import os
 import logging
 import json
+import langfeather
+
+langfeather.configure('http://127.0.0.1:4319')
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -9,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from main import music_search, music_search_stream
 from api.models import SearchRequest, SearchResponse
 
@@ -54,11 +57,17 @@ async def search_stream(request: SearchRequest):
     history = [h.model_dump() for h in request.history]
 
     async def event_generator():
-        async for event in music_search_stream(request.question, history=history):
+        async for event in music_search_stream(request.question, history=history, taste_genres=request.taste_genres
+        ):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-app.mount('/', StaticFiles(directory='frontend', html=True), name='static')
+@app.get("/")
+async def home():
+    return FileResponse("frontend/home.html")
+app.mount('/static', StaticFiles(directory='frontend', html=True), name='static')
+
+wrapped_app = langfeather.wrap_asgi(app, name='music_rag_api')
