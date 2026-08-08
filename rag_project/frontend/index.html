@@ -2,42 +2,147 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>음악 추천 챗봇</title>
+<title>Music Recommendation Chatbot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --bg: #090607;
+    --card: #221f20;
+    --card-hover: #2b2728;
+    --purple: #ac1ed6;
+    --rose: #c26e73;
+    --text: #f2eef0;
+    --text-dim: #9a9296;
+    --border: rgba(255,255,255,0.08);
+  }
   * { box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
     margin: 0;
-    background: #0f0f12;
-    color: #e8e8ea;
+    background: var(--bg);
+    color: var(--text);
     display: flex;
     height: 100vh;
     overflow: hidden;
+    position: relative;
   }
+  .ambient {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 800px 600px at 20% -10%, rgba(172, 30, 214, 0.25), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 90% 10%, rgba(194, 110, 115, 0.18), transparent 60%),
+      radial-gradient(ellipse 900px 700px at 50% 120%, rgba(172, 30, 214, 0.12), transparent 60%);
+  }
+  #sidebar, #main { position: relative; z-index: 1; }
 
   /* ---------- 사이드바 ---------- */
   #sidebar {
+    position: relative;
     width: 240px;
-    background: #17171b;
-    border-right: 1px solid #26262c;
+    background: var(--card);
+    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     padding: 16px;
     flex-shrink: 0;
+    transition: width 0.2s ease, padding 0.2s ease;
+    overflow: visible;
   }
-  #sidebar h2 {
-    font-size: 18px;
-    background: linear-gradient(135deg, #c77dff, #ff6ec7);
+  #sidebar.collapsed {
+    width: 56px;
+    padding: 16px 10px;
+  }
+  #sidebar.collapsed #sidebar-body,
+  #sidebar.collapsed #sidebar-title {
+    display: none;
+  }
+  #sidebar-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+  }
+  #sidebar-toggle {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  #sidebar-toggle:hover { background: var(--card-hover); color: var(--text); }
+  #sidebar-toggle svg { width: 15px; height: 15px; }
+  #sidebar-home {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 20;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+  }
+  #sidebar-home:hover { background: var(--card-hover); color: var(--text); }
+  #sidebar-home svg { width: 15px; height: 15px; }
+
+  /* 사이드바 가장자리 접기/펼치기 화살표 */
+  #sidebar-edge-toggle {
+    position: absolute;
+    top: 50%;
+    right: -12px;
+    transform: translateY(-50%);
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--card-hover);
+    color: var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    transition: background 0.15s, color 0.15s;
+  }
+  #sidebar-edge-toggle:hover { background: var(--purple); color: white; }
+  #sidebar-edge-toggle svg { width: 13px; height: 13px; transition: transform 0.2s; }
+  #sidebar.collapsed #sidebar-edge-toggle svg { transform: rotate(180deg); }
+
+  #sidebar-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  #sidebar-title {
+    font-family: 'Epilogue', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1.3;
+    background: linear-gradient(135deg, var(--purple), var(--rose));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    margin: 0 0 16px 4px;
+    cursor: pointer;
+    white-space: normal;
+    word-break: keep-all;
   }
   #new-chat-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: linear-gradient(135deg, #a855f7, #ec4899);
+    background: linear-gradient(135deg, var(--purple), var(--rose));
     color: white;
     border: none;
     border-radius: 10px;
@@ -45,12 +150,21 @@
     font-size: 14px;
     cursor: pointer;
     margin-bottom: 16px;
+    font-family: 'Inter', sans-serif;
   }
   #new-chat-btn:hover { opacity: 0.9; }
   #history-label {
-    font-size: 12px;
-    color: #6b6b74;
-    margin: 4px 4px 8px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #e3b8f2;
+    background: rgba(172, 30, 214, 0.16);
+    border: 1px solid rgba(172, 30, 214, 0.25);
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin: 4px 4px 10px;
   }
   #history-list {
     flex: 1;
@@ -63,12 +177,39 @@
     padding: 10px 12px;
     border-radius: 8px;
     font-size: 13px;
-    color: #b0b0b8;
+    color: var(--text-dim);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 6px;
+  }
+  #sidebar-footer {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 8px;
+  }
+  #clear-history-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: #e3b8f2;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 9px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  #clear-history-btn:hover {
+    background: rgba(172, 30, 214, 0.14);
+    border-color: rgba(172, 30, 214, 0.3);
   }
   .history-item .history-title {
     white-space: nowrap;
@@ -76,14 +217,14 @@
     text-overflow: ellipsis;
     flex: 1;
   }
-  .history-item:hover { background: #1f1f25; }
-  .history-item.active { background: #2a1f33; color: #e29bff; font-weight: 500; }
+  .history-item:hover { background: var(--card-hover); }
+  .history-item.active { background: rgba(172, 30, 214, 0.14); color: #e3b8f2; font-weight: 500; }
 
   .history-delete-btn {
     display: none;
     background: none;
     border: none;
-    color: #6b6b74;
+    color: var(--text-dim);
     font-size: 14px;
     cursor: pointer;
     padding: 2px 6px;
@@ -91,7 +232,7 @@
     flex-shrink: 0;
   }
   .history-item:hover .history-delete-btn { display: block; }
-  .history-delete-btn:hover { background: #33333c; color: #ff6ec7; }
+  .history-delete-btn:hover { background: var(--card-hover); color: var(--rose); }
 
   /* ---------- 메인 영역 ---------- */
   #main {
@@ -104,40 +245,178 @@
     width: 100%;
   }
 
-  /* ---------- 랜딩 화면 ---------- */
+  /* ---------- 랜딩 화면 (블롭 오브 + Get started + 플로팅 입력바) ---------- */
   #landing-view {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-height: 0;
+  }
+
+  .landing-topbar { display: flex; align-items: center; margin-bottom: 8px; }
+  .landing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .hero-orb-stage {
+    flex: 1;
+    display: flex;
     align-items: center;
     justify-content: center;
-    text-align: center;
-    gap: 28px;
+    min-height: 200px;
   }
-  #landing-view h1 {
-    font-size: 32px;
-    font-weight: 700;
-    margin: 0;
-    background: linear-gradient(135deg, #c77dff, #ff6ec7, #a855f7);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    line-height: 1.4;
+  .hero-orb {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    filter: blur(38px) saturate(1.3);
   }
-  #start-chat-btn {
-    padding: 14px 32px;
-    border-radius: 28px;
-    border: none;
-    background: linear-gradient(135deg, #a855f7, #ec4899);
-    color: white;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.35);
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    mix-blend-mode: screen;
+    opacity: 0.85;
   }
-  #start-chat-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .blob-1 {
+    width: 190px; height: 190px;
+    top: 20px; left: 30px;
+    background: radial-gradient(circle at 35% 35%, var(--purple), transparent 70%);
+    animation: drift1 9s ease-in-out infinite;
+  }
+  .blob-2 {
+    width: 170px; height: 170px;
+    top: 60px; left: 70px;
+    background: radial-gradient(circle at 60% 40%, var(--rose), transparent 70%);
+    animation: drift2 11s ease-in-out infinite;
+  }
+  .blob-3 {
+    width: 150px; height: 150px;
+    top: 40px; left: 55px;
+    background: radial-gradient(circle at 50% 60%, #7a5cff, transparent 70%);
+    animation: drift3 7.5s ease-in-out infinite;
+  }
+  @keyframes drift1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(18px, -14px) scale(1.08); }
+  }
+  @keyframes drift2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-16px, 16px) scale(0.94); }
+  }
+  @keyframes drift3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(10px, 12px) scale(1.1); }
+  }
 
-  /* ---------- 채팅 화면 ---------- */
+  .get-started-row { margin-bottom: 16px; }
+  .gs-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 0 2px;
+  }
+  .gs-head span { font-size: 14px; color: var(--text-dim); font-weight: 500; }
+  .gs-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px;
+  }
+  .gs-close:hover { color: var(--text); }
+  .gs-scroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .gs-scroll::-webkit-scrollbar { display: none; }
+  .gs-card {
+    flex: 0 0 auto;
+    width: 220px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .gs-card:hover { background: var(--card-hover); transform: translateY(-2px); }
+  .gs-icon {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .gs-icon.spotify { background: linear-gradient(135deg, rgba(29,185,84,0.25), rgba(29,185,84,0.05)); }
+  .gs-icon.youtube { background: linear-gradient(135deg, rgba(255,60,60,0.25), rgba(255,60,60,0.05)); }
+  .gs-icon.mix { background: linear-gradient(135deg, rgba(172,30,214,0.28), rgba(194,110,115,0.12)); }
+  .gs-title { font-size: 13.5px; font-weight: 600; margin-bottom: 3px; }
+  .gs-sub { font-size: 11.5px; color: var(--text-dim); line-height: 1.4; }
+
+  .quick-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 8px 8px 16px;
+    backdrop-filter: blur(14px);
+  }
+  .quick-icon-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  .quick-icon-btn:hover { background: var(--card-hover); color: var(--text); }
+  .quick-icon-btn svg { width: 16px; height: 16px; }
+  #quick-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 14.5px;
+    font-family: 'Inter', sans-serif;
+    min-width: 0;
+  }
+  #quick-input::placeholder { color: var(--text-dim); }
+  .quick-send {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, var(--purple), var(--rose));
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .quick-send svg { width: 16px; height: 16px; }
+
+  /* ---------- 채팅 화면 (플로팅 알약 입력바) ---------- */
   #chat-view {
     flex: 1;
     display: none;
@@ -145,11 +424,8 @@
     min-height: 0;
   }
   #chat-container {
-    background: #17171b;
-    border: 1px solid #26262c;
-    border-radius: 16px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-    padding: 20px;
+    background: transparent;
+    padding: 4px 4px 0;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -165,7 +441,7 @@
   .empty-state {
     margin-top: auto;
     text-align: center;
-    color: #6b6b74;
+    color: var(--text-dim);
     padding: 20px 0;
   }
   .suggestions {
@@ -176,15 +452,16 @@
     margin-top: 16px;
   }
   .suggestion-chip {
-    background: #26262c;
-    color: #e29bff;
-    border: 1px solid #3a3a42;
+    background: rgba(255,255,255,0.03);
+    color: #e3b8f2;
+    border: 1px solid var(--border);
     border-radius: 20px;
     padding: 10px 18px;
     font-size: 14px;
     cursor: pointer;
+    font-family: 'Inter', sans-serif;
   }
-  .suggestion-chip:hover { background: #2e2e36; }
+  .suggestion-chip:hover { background: var(--card-hover); }
 
   .msg-row {
     display: flex;
@@ -205,28 +482,24 @@
     font-size: 18px;
     flex-shrink: 0;
   }
-  .msg-row.user .avatar { background: #3a2540; }
-  .msg-row.bot .avatar { background: #26262c; }
-
-.bubble {
-  max-width: 75%;
-  padding: 10px 16px;
-  border-radius: 18px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  font-size: 15px;
-  background: #26262c;
-  color: #e8e8ea;
-  box-shadow: 0 0 16px rgba(168, 85, 247, 0.08);  /* 봇 말풍선 기본 은은한 보라 글로우 */
-}
-.user .bubble {
-  background: linear-gradient(135deg, #a855f7, #ec4899);
-  color: white;
-  border-bottom-right-radius: 4px;
-  box-shadow: 0 0 20px rgba(236, 73, 153, 0.35);  /* 사용자 말풍선 - 핑크 네온 */
-}
+  .bubble {
+    max-width: 75%;
+    padding: 10px 16px;
+    border-radius: 18px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    font-size: 15px;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .user .bubble {
+    background: linear-gradient(135deg, rgba(172, 30, 214, 0.55), rgba(194, 110, 115, 0.55));
+    color: var(--text);
+    border-bottom-right-radius: 4px;
+  }
   .bot .bubble { border-bottom-left-radius: 4px; }
-  .bot .bubble a { color: #e29bff; text-decoration: underline; word-break: break-all; }
+  .bot .bubble a { color: #e3b8f2; text-decoration: underline; word-break: break-all; }
   .user .bubble a { color: white; text-decoration: underline; }
   .bubble strong { font-weight: 600; }
   .bubble.spotify strong { color: #1DB954; }
@@ -234,7 +507,7 @@
 
   .bubble.spotify,
   .bubble.youtube {
-    box-shadow: 0 0 24px rgba(236, 73, 153, 0.25);
+    background: rgba(255,255,255,0.045);
   }
   .source-tag {
     font-size: 12px;
@@ -248,26 +521,95 @@
   .source-tag.spotify { background-color: #123a24; color: #3ddc84; }
   .source-tag.youtube { background-color: #3a1414; color: #ff7a7a; }
 
-  form {
+  form#chat-form {
     display: flex;
+    align-items: center;
     gap: 8px;
-    background: transparent;
-    padding: 12px 0 0 0;
-    border-top: 1px solid #26262c;
-    margin-top: 12px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 8px 8px 16px;
+    backdrop-filter: blur(14px);
   }
-  input {
+  #chat-form input {
     flex: 1;
-    padding: 12px 16px;
-    border-radius: 24px;
-    border: 1px solid #33333c;
-    font-size: 15px;
+    border: none;
     outline: none;
-    background: #1f1f25;
-    color: #e8e8ea;
+    background: none;
+    color: var(--text);
+    font-size: 14.5px;
+    font-family: 'Inter', sans-serif;
+    min-width: 0;
+    padding: 6px 0;
   }
-  input::placeholder { color: #6b6b74; }
-  input:focus { border-color: #a855f7; }
+  #chat-form input::placeholder { color: var(--text-dim); }
+  .chat-icon-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  .chat-icon-btn:hover { background: var(--card-hover); color: var(--text); }
+  .chat-icon-btn svg { width: 15px; height: 15px; }
+
+  #chat-input-wrap { position: relative; margin-top: 14px; }
+
+  #chat-examples-popover {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+    z-index: 15;
+  }
+  #chat-examples-popover.open { display: block; }
+  .ce-head {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 500;
+    margin-bottom: 10px;
+    padding: 0 2px;
+  }
+  .ce-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .ce-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+  }
+  .ce-card:hover { background: var(--card-hover); }
+  .ce-icon {
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .ce-icon.spotify { background: rgba(29,185,84,0.15); }
+  .ce-icon.youtube { background: rgba(255,60,60,0.15); }
+  .ce-title { font-size: 12.5px; font-weight: 600; margin-bottom: 3px; }
+  .ce-sub { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+
+  @media (max-width: 560px) {
+    .ce-grid { grid-template-columns: 1fr; }
+  }
 
   @keyframes bounce-hint {
     0%, 100% { transform: translateY(0); }
@@ -275,34 +617,111 @@
   }
   input.bounce { animation: bounce-hint 1.2s ease-in-out infinite; }
 
-  button[type="submit"] {
-    padding: 12px 20px;
-    border-radius: 24px;
+  #send-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
     border: none;
-    background: linear-gradient(135deg, #a855f7, #ec4899);
+    background: linear-gradient(135deg, var(--purple), var(--rose));
     color: white;
     font-size: 15px;
     cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
   }
-  button[type="submit"]:hover { opacity: 0.9; }
-  button[type="submit"]:disabled { background: #33333c; opacity: 1; cursor: not-allowed; }
+  #send-btn:hover { opacity: 0.9; }
+  #send-btn:disabled { background: var(--card-hover); opacity: 1; cursor: not-allowed; }
 </style>
 </head>
 <body>
 
+  <a id="sidebar-home" href="/" title="홈으로">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10"/></svg>
+  </a>
+
+  <div class="ambient"></div>
+
   <div id="sidebar">
-    <h2>🎵 Music Recommendation Chatbot</h2>
-    <button id="new-chat-btn" type="button">+ New chat</button>
-    <div id="history-label">History</div>
-    <div id="history-list"></div>
+    <div id="sidebar-top">
+      <button id="sidebar-toggle" type="button" title="사이드바 접기/펼치기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <h2 id="sidebar-title">🎵 Music Chatbot</h2>
+    </div>
+    <button id="sidebar-edge-toggle" type="button" title="사이드바 접기/펼치기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div id="sidebar-body">
+      <button id="new-chat-btn" type="button">+ New chat</button>
+      <div id="history-label">History</div>
+      <div id="history-list"></div>
+      <div id="sidebar-footer">
+        <button id="clear-history-btn" type="button">🗑️ 대화 내용 초기화</button>
+      </div>
+    </div>
   </div>
 
   <div id="main">
 
     <!-- 랜딩 화면 -->
     <div id="landing-view">
-      <h1>검색하고 싶은<br>음악을 입력하세요</h1>
-      <button id="start-chat-btn" type="button">음악 추천 받기</button>
+      <div class="landing-topbar">
+        <div class="landing-badge">🎵 Music AI</div>
+      </div>
+
+      <div class="hero-orb-stage">
+        <div class="hero-orb">
+          <div class="blob blob-1"></div>
+          <div class="blob blob-2"></div>
+          <div class="blob blob-3"></div>
+        </div>
+      </div>
+
+      <div class="get-started-row" id="get-started-row">
+        <div class="gs-head">
+          <span>Get started</span>
+          <button class="gs-close" id="gs-close" type="button">✕</button>
+        </div>
+        <div class="gs-scroll">
+          <div class="gs-card" data-q="기분이 안 좋아">
+            <div class="gs-icon spotify">🎧</div>
+            <div>
+              <div class="gs-title">무드로 찾기</div>
+              <div class="gs-sub">상황만 말해도 곡을 골라드려요.</div>
+            </div>
+          </div>
+          <div class="gs-card" data-q="SZA 라이브 영상 추천해줘">
+            <div class="gs-icon youtube">📺</div>
+            <div>
+              <div class="gs-title">라이브 · 커버</div>
+              <div class="gs-sub">무대·커버 영상을 링크로 드려요.</div>
+            </div>
+          </div>
+          <div class="gs-card" data-q="5SOS 노래 추천해줘">
+            <div class="gs-icon spotify">🔍</div>
+            <div>
+              <div class="gs-title">아티스트로 찾기</div>
+              <div class="gs-sub">약어·오타·한글 표기도 알아들어요.</div>
+            </div>
+          </div>
+          <div class="gs-card" data-q="공부할 때 듣는 플레이리스트 추천해줘">
+            <div class="gs-icon mix">📚</div>
+            <div>
+              <div class="gs-title">플레이리스트</div>
+              <div class="gs-sub">상황에 맞는 재생목록을 찾아요.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quick-bar">
+        <button class="quick-icon-btn" type="button" title="첨부(준비 중)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <input id="quick-input" type="text" placeholder="듣고 싶은 음악을 검색해보세요" autocomplete="off">
+        <button class="quick-send" id="quick-submit" type="button" title="보내기">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- 채팅 화면 -->
@@ -318,10 +737,37 @@
             </div>
           </div>
         </div>
-        <form id="chat-form">
-          <input id="question" class="bounce" placeholder="예: 흐린 날 듣기 좋은 노래 추천해줘" autocomplete="off" required />
-          <button type="submit" id="send-btn">↑</button>
-        </form>
+        <div id="chat-input-wrap">
+          <div id="chat-examples-popover">
+            <div class="ce-head">이런 걸 물어보세요</div>
+            <div class="ce-grid">
+              <div class="ce-card" data-q="기분이 안 좋아">
+                <div class="ce-icon spotify">🎧</div>
+                <div class="ce-title">무드로 찾기</div>
+                <div class="ce-sub">상황만 말해도 곡을 골라드려요.</div>
+              </div>
+              <div class="ce-card" data-q="아이유 라이브 영상 추천해줘">
+                <div class="ce-icon youtube">📺</div>
+                <div class="ce-title">라이브 · 커버 찾기</div>
+                <div class="ce-sub">무대·커버 영상을 링크로 드려요.</div>
+              </div>
+              <div class="ce-card" data-q="5SOS 노래 추천해줘">
+                <div class="ce-icon spotify">🔍</div>
+                <div class="ce-title">아티스트로 찾기</div>
+                <div class="ce-sub">약어·오타·한글 표기도 알아들어요.</div>
+              </div>
+            </div>
+          </div>
+          <form id="chat-form">
+            <button type="button" class="chat-icon-btn" id="chat-examples-toggle" title="예시 보기">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <input id="question" class="bounce" placeholder="예: 흐린 날 듣기 좋은 노래 추천해줘" autocomplete="off" required />
+            <button type="submit" id="send-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" width="16" height="16"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            </button>
+          </form>
+        </div>
       </div>
     </div>
 
@@ -330,7 +776,6 @@
 <script>
 const landingView = document.getElementById('landing-view');
 const chatView = document.getElementById('chat-view');
-const startChatBtn = document.getElementById('start-chat-btn');
 
 const chat = document.getElementById('chat');
 const form = document.getElementById('chat-form');
@@ -338,6 +783,7 @@ const input = document.getElementById('question');
 const sendBtn = document.getElementById('send-btn');
 const historyList = document.getElementById('history-list');
 const newChatBtn = document.getElementById('new-chat-btn');
+const quickInput = document.getElementById('quick-input');
 
 const EMPTY_STATE_HTML = `
   <div id="empty-state" class="empty-state">
@@ -361,9 +807,27 @@ function showLandingView() {
   chatView.style.display = 'none';
 }
 
-startChatBtn.addEventListener('click', () => {
+// 랜딩에서 대화 시작 진입점 (플로팅 입력바 / Get started 카드 공용)
+function enterChat(prefillQuestion) {
   showChatView();
-  if (sessions.length === 0) startNewChat();
+  if (sessions.length === 0 || currentSessionId === null) startNewChat();
+  if (prefillQuestion) {
+    input.value = prefillQuestion;
+    form.requestSubmit();
+  }
+}
+
+document.getElementById('quick-submit').addEventListener('click', () => {
+  enterChat(quickInput.value.trim() || undefined);
+});
+quickInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') enterChat(quickInput.value.trim() || undefined);
+});
+document.querySelectorAll('.gs-card').forEach(card => {
+  card.addEventListener('click', () => enterChat(card.dataset.q));
+});
+document.getElementById('gs-close').addEventListener('click', () => {
+  document.getElementById('get-started-row').style.display = 'none';
 });
 
 // ---------- 세션(History) 관리 ----------
@@ -372,6 +836,11 @@ let currentSessionId = null;
 
 function saveSessions() {
   localStorage.setItem('music_chat_sessions', JSON.stringify(sessions));
+}
+
+function getTasteGenres() {
+  const session = getCurrentSession();
+  return session?.tasteGenres || [];
 }
 
 function renderHistory() {
@@ -482,7 +951,7 @@ function addMessage(text, sender, source, persist = true) {
   }
 
   const textSpan = document.createElement('span');
-  textSpan.className = 'answer-text'; 
+  textSpan.className = 'answer-text';
   const escaped = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   textSpan.innerHTML = boldify(linkify(escaped));
   bubble.appendChild(textSpan);
@@ -522,11 +991,13 @@ function bindSuggestionChips() {
 }
 
 async function sendStreamingMessage(question, history) {
-  const loadingRow = addMessage('음악 추천 중...', 'bot', null, false);
+  const targetSessionId = currentSessionId;
+  const loadingRow = addMessage('판단중...', 'bot', null, false);
+  let sessionGenres = [];
   const res = await fetch('/search/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, history })
+    body: JSON.stringify({ question, history, taste_genres: getTasteGenres()})
   });
 
   const reader = res.body.getReader();
@@ -542,7 +1013,7 @@ async function sendStreamingMessage(question, history) {
 
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n\n');
-    buffer = lines.pop();  // 마지막 미완성 조각은 다음 루프로 넘김
+    buffer = lines.pop();
 
     for (const line of lines) {
       if (!line.startsWith('data: ')) continue;
@@ -550,27 +1021,40 @@ async function sendStreamingMessage(question, history) {
       if (payload === '[DONE]') continue;
 
       const event = JSON.parse(payload);
+      const isStillVisible = currentSessionId === targetSessionId;
+
       if (event.type === 'meta') {
         source = event.source;
-        loadingRow.remove();   
-        answerRow = addMessage('', 'bot', source, false);  
+        if (event.genres) {
+          sessionGenres = event.genres;   
+          }
+        if (isStillVisible) {
+          loadingRow.remove();
+          answerRow = addMessage('', 'bot', source, false)
+        }
       } else if (event.type === 'token') {
         fullText += event.text;
-        updateMessageText(answerRow, fullText);      
+        if (isStillVisible && answerRow){
+        updateMessageText(answerRow, fullText);
+        }
       } else if (event.type === 'final'){
         fullText = event.text;
-        updateMessageText(answerRow, fullText)
+        if (isStillVisible && answerRow){
+          updateMessageText(answerRow, fullText);
+        }
       }
     }
   }
-  const session = getCurrentSession();
-  if (session) {
-    session.messages.push({ text: fullText, sender: 'bot', source });
+  const targetSession = sessions.find(s => s.id === targetSessionId);
+  if (targetSession){
+    targetSession.messages.push({ text: fullText, sender: 'bot', source});
+    targetSession.tasteGenres = sessionGenres;
     saveSessions();
-    renderHistory();
+    if (currentSessionId === targetSessionId){
+      renderHistory();
+    }
   }
 }
-
 
 function updateMessageText(row, text) {
   const textSpan = row.querySelector('.answer-text');
@@ -580,9 +1064,50 @@ function updateMessageText(row, text) {
 }
 
 // ---------- 이벤트 ----------
+document.getElementById('sidebar-toggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+});
+document.getElementById('sidebar-edge-toggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+});
+
+// ---------- 채팅창 예시 카드 팝업 ----------
+const examplesPopover = document.getElementById('chat-examples-popover');
+const examplesToggle = document.getElementById('chat-examples-toggle');
+
+examplesToggle.addEventListener('click', () => {
+  examplesPopover.classList.toggle('open');
+});
+
+document.querySelectorAll('.ce-card').forEach(card => {
+  card.addEventListener('click', () => {
+    input.value = card.dataset.q;
+    examplesPopover.classList.remove('open');
+    input.focus();
+  });
+});
+
+document.addEventListener('click', (e) => {
+  if (examplesPopover.classList.contains('open') &&
+      !examplesPopover.contains(e.target) &&
+      e.target !== examplesToggle && !examplesToggle.contains(e.target)) {
+    examplesPopover.classList.remove('open');
+  }
+});
+
 newChatBtn.addEventListener('click', () => {
   startNewChat();
   showChatView();
+});
+
+document.getElementById('clear-history-btn').addEventListener('click', () => {
+  if (!confirm('모든 대화 기록을 삭제할까요? 되돌릴 수 없어요.')) return;
+  sessions = [];
+  saveSessions();
+  currentSessionId = null;
+  chat.innerHTML = '';
+  renderHistory();
+  showLandingView();
 });
 
 input.addEventListener('input', () => {
@@ -609,7 +1134,7 @@ form.addEventListener('submit', async (e) => {
   sendBtn.disabled = true;
 
   try {
-    await sendStreamingMessage(question, history.slice(-1));
+    await sendStreamingMessage(question, history.slice(-2));
   } catch (err) {
     addMessage('오류가 발생했어요: ' + err.message, 'bot', null, false);
   } finally {
@@ -620,7 +1145,18 @@ form.addEventListener('submit', async (e) => {
 // ---------- 초기화 ----------
 bindSuggestionChips();
 renderHistory();
-showLandingView();  // 항상 랜딩 화면부터 시작
+
+// home.html에서 넘어온 프리필 질문이 있으면 바로 채팅 시작
+const prefill = sessionStorage.getItem('aura_prefill');
+if (prefill) {
+  sessionStorage.removeItem('aura_prefill');
+  showChatView();
+  startNewChat();
+  input.value = prefill;
+  form.requestSubmit();
+} else {
+  showLandingView();
+}
 </script>
 </body>
 </html>

@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Recommendation Chatbot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090607;
+    --card: #221f20;
+    --card-hover: #2b2728;
+    --purple: #ac1ed6;
+    --rose: #c26e73;
+    --text: #f2eef0;
+    --text-dim: #9a9296;
+    --border: rgba(255,255,255,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    height: 100%;
+    overflow-x: hidden;
+  }
+  ::selection { background: var(--purple); color: white; }
+
+  .ambient {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 800px 600px at 20% -10%, rgba(172, 30, 214, 0.25), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 90% 10%, rgba(194, 110, 115, 0.18), transparent 60%),
+      radial-gradient(ellipse 900px 700px at 50% 120%, rgba(172, 30, 214, 0.12), transparent 60%);
+  }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    min-height: 100vh;
+  }
+
+  .rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 0;
+    gap: 28px;
+    border-right: 1px solid var(--border);
+  }
+  .rail-logo {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--purple), var(--rose));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+  .rail-icons { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .rail-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .rail-icon:hover, .rail-icon.active { background: var(--card); color: var(--text); }
+  .rail-icon svg { width: 20px; height: 20px; }
+  .rail-bottom { margin-top: auto; }
+
+  main { padding: 40px 56px 80px; max-width: 1180px; }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 64px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 6px 6px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .badge .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--rose));
+  }
+  .badge b { color: var(--text); font-weight: 600; }
+
+  .hero { text-align: center; margin-bottom: 48px; }
+  .eyebrow {
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--rose);
+    font-weight: 600;
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-family: 'Epilogue', sans-serif;
+    font-weight: 800;
+    font-size: clamp(22px, 2.6vw, 32px);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    background: linear-gradient(180deg, #ffffff 0%, #cfc6c9 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 32px;
+  }
+
+  /* ---------- orb (signature — particle mesh sphere) ---------- */
+  .orb-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  .orb {
+    position: relative;
+    width: 340px; height: 340px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .orb-glow {
+    position: absolute;
+    inset: -50px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(172,30,214,0.32), transparent 68%);
+    filter: blur(28px);
+    animation: glow-pulse 4.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes glow-pulse {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50% { opacity: 0.9; transform: scale(1.08); }
+  }
+  #orb-canvas {
+    position: relative;
+    z-index: 1;
+    width: 340px;
+    height: 340px;
+  }
+  .orb-bars {
+    position: absolute;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    pointer-events: none;
+  }
+  .orb-bars span {
+    display: block;
+    width: 3px;
+    border-radius: 2px;
+    background: #f2eef0;
+    box-shadow: 0 0 8px rgba(255,255,255,0.6);
+    animation: bar-bounce 1.1s ease-in-out infinite;
+  }
+  .orb-bars span:nth-child(1) { height: 10px; animation-delay: -0.9s; }
+  .orb-bars span:nth-child(2) { height: 20px; animation-delay: -0.6s; }
+  .orb-bars span:nth-child(3) { height: 28px; animation-delay: -0.3s; }
+  .orb-bars span:nth-child(4) { height: 16px; animation-delay: -1.0s; }
+  .orb-bars span:nth-child(5) { height: 24px; animation-delay: -0.15s; }
+  .orb-bars span:nth-child(6) { height: 12px; animation-delay: -0.75s; }
+  @keyframes bar-bounce {
+    0%, 100% { transform: scaleY(0.4); opacity: 0.7; }
+    50% { transform: scaleY(1); opacity: 1; }
+  }
+
+  .orb-hint {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    margin-bottom: 28px;
+  }
+
+  .search-row {
+    max-width: 640px;
+    margin: 0 auto 20px;
+  }
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 22px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+  }
+  .search-box svg { width: 18px; height: 18px; color: var(--text-dim); flex-shrink: 0; }
+  .search-box input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 15px;
+    font-family: 'Inter', sans-serif;
+  }
+  .search-box input::placeholder { color: var(--text-dim); }
+  .search-box button {
+    background: linear-gradient(135deg, var(--purple), var(--rose));
+    border: none;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    flex-shrink: 0;
+  }
+
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 72px;
+  }
+  .pill {
+    padding: 9px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .pill:hover { background: var(--card); color: var(--text); }
+  .pill.active {
+    background: linear-gradient(135deg, var(--purple), var(--rose));
+    color: white;
+    border-color: transparent;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .section-head h2 {
+    font-family: 'Epilogue', sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .section-head a { font-size: 13px; color: var(--text-dim); text-decoration: none; }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 56px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .card:hover { background: var(--card-hover); transform: translateY(-2px); }
+  .card-icon {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+    font-size: 18px;
+  }
+  .card-icon.spotify { background: rgba(29,185,84,0.15); }
+  .card-icon.youtube { background: rgba(255,60,60,0.15); }
+  .card-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+  .card-sub { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+  .recent-list { display: flex; flex-direction: column; gap: 2px; }
+  .recent-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .recent-item:hover { background: var(--card); }
+  .recent-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--rose));
+    flex-shrink: 0;
+  }
+  .recent-text { flex: 1; font-size: 14px; color: var(--text-dim); }
+  .recent-time { font-size: 12px; color: var(--text-dim); opacity: 0.6; }
+
+  @media (max-width: 720px) {
+    .shell { grid-template-columns: 1fr; }
+    .rail { display: none; }
+    main { padding: 28px 20px 60px; }
+    .cards { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ambient"></div>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="rail-logo">🤖</div>
+    <div class="rail-icons">
+      <div class="rail-icon active" title="홈">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10"/></svg>
+      </div>
+      <div class="rail-icon" id="search-icon" title="대화 검색">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      </div>
+    </div>
+    <div class="rail-bottom" style="position: relative;">
+      <div class="rail-icon" id="settings-icon" title="설정">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+      <div id="settings-panel" style="display:none; position:absolute; left:52px; bottom:0;
+           background: var(--card); border:1px solid var(--border); border-radius:10px;
+           padding:8px; width:160px; box-shadow:0 8px 24px rgba(0,0,0,0.4); z-index:10;">
+        <button id="clear-history-btn" type="button" style="width:100%; text-align:left;
+          background:none; border:none; color: var(--text); font-size:13px; padding:8px 10px;
+          border-radius:6px; cursor:pointer; font-family:'Inter', sans-serif;">
+          🗑️ 대화 내용 초기화
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div class="badge"><span class="dot"></span>Music <b>Chatbot</b></div>
+    </div>
+
+    <div class="hero">
+      <div class="eyebrow">Discover</div>
+      <h1>검색하고 싶은 음악을 입력하세요</h1>
+    </div>
+
+    <div class="orb-wrap">
+      <div class="orb" onclick="location.href='/static/index.html'">
+        <div class="orb-glow"></div>
+        <canvas id="orb-canvas" width="340" height="340"></canvas>
+        <div class="orb-bars">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+    <div class="orb-hint">⬆︎ 눌러서 대화 시작하기</div>
+
+    <div class="search-row">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="quick-input" type="text" placeholder="예: 흐린 날 듣기 좋은 노래 추천해줘" autocomplete="off">
+        <button onclick="goToChat()">추천 받기</button>
+      </div>
+    </div>
+
+    <div class="pills">
+      <div class="pill active" data-q="신나는 노래 추천해줘">전체</div>
+      <div class="pill" data-q="비 오는 날 듣기 좋은 노래 추천해줘">분위기</div>
+      <div class="pill" data-q="재즈 추천해줘">장르</div>
+      <div class="pill" data-q="Bruno Mars 노래 추천해줘">아티스트</div>
+      <div class="pill" data-q="공부할 때 듣는 플레이리스트 추천해줘">플레이리스트</div>
+      <div class="pill" data-q="요즘 나온 신곡 추천해줘">신곡</div>
+    </div>
+
+    <div class="section-head">
+      <h2>이런 걸 물어보세요</h2>
+    </div>
+    <div class="cards">
+      <div class="card" onclick="goToChat('기분이 안 좋아')">
+        <div class="card-icon spotify">🎧</div>
+        <div class="card-title">무드로 찾기</div>
+        <div class="card-sub">"기분이 안 좋아", "운동할 때 들을 거"처럼 상황만 말해도 곡을 골라드려요.</div>
+      </div>
+      <div class="card" onclick="goToChat('BTS 라이브 영상 추천해줘')">
+        <div class="card-icon youtube">📺</div>
+        <div class="card-title">라이브 · 커버 찾기</div>
+        <div class="card-sub">무대 영상이나 커버 버전은 유튜브에서 바로 찾아 링크로 드려요.</div>
+      </div>
+      <div class="card" onclick="goToChat('5SOS 노래 추천해줘')">
+        <div class="card-icon spotify">🔍</div>
+        <div class="card-title">아티스트로 찾기</div>
+        <div class="card-sub">약어, 오타, 한글 표기 다 알아듣고 정확한 아티스트를 찾아내요.</div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>최근 대화</h2>
+      <a href="/static/index.html">모두 보기</a>
+    </div>
+    <div id="recent-search-wrap" style="display:none; margin-bottom: 10px;">
+      <input id="recent-search-input" type="text" placeholder="대화 제목 검색"
+        style="width:100%; padding:10px 14px; border-radius:10px; border:1px solid var(--border);
+               background: rgba(255,255,255,0.03); color: var(--text); font-size:13px;
+               font-family:'Inter', sans-serif; outline:none;">
+    </div>
+    <div class="recent-list" id="recent-list">
+      <div class="recent-item" style="color: var(--text-dim); font-size: 13px; padding: 14px 16px;">
+        아직 대화 기록이 없어요 — 위에서 첫 질문을 시작해보세요.
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  function goToChat(prefill) {
+    if (prefill) {
+      sessionStorage.setItem('aura_prefill', prefill);
+    }
+    const inputVal = document.getElementById('quick-input').value.trim();
+    if (!prefill && inputVal) {
+      sessionStorage.setItem('aura_prefill', inputVal);
+    }
+    location.href = '/static/index.html';
+  }
+
+  document.getElementById('quick-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') goToChat();
+  });
+
+  document.querySelectorAll('.pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      document.getElementById('quick-input').placeholder = pill.dataset.q;
+    });
+  });
+
+  // ---------- 파티클 메쉬 구체 (오브) ----------
+  (function () {
+    const canvas = document.getElementById('orb-canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2;
+    const baseR = 122;
+
+    function noise3(x, y, z, t) {
+      return (
+        Math.sin(x * 2.1 + t) * Math.cos(y * 1.7 - t * 0.8) +
+        Math.sin(y * 2.6 - t * 1.1) * Math.cos(z * 1.9 + t * 0.6) +
+        Math.sin(z * 2.3 + t * 0.9) * Math.cos(x * 1.5 - t)
+      ) / 3;
+    }
+
+    const N = 1100;
+    const points = [];
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < N; i++) {
+      const y = 1 - (i / (N - 1)) * 2;
+      const r = Math.sqrt(1 - y * y);
+      const theta = golden * i;
+      points.push({
+        x: Math.cos(theta) * r,
+        y: y,
+        z: Math.sin(theta) * r,
+      });
+    }
+
+    let angle = 0;
+    function draw(t) {
+      ctx.clearRect(0, 0, W, H);
+      angle += 0.0022;
+      const sinA = Math.sin(angle), cosA = Math.cos(angle);
+      const sinB = Math.sin(angle * 0.6), cosB = Math.cos(angle * 0.6);
+
+      const projected = [];
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        const n = noise3(p.x * 2, p.y * 2, p.z * 2, t * 0.00025);
+        const displace = 1 + n * 0.22;
+
+        let x = p.x * displace;
+        let y = p.y * displace;
+        let z = p.z * displace;
+
+        let x1 = x * cosA - z * sinA;
+        let z1 = x * sinA + z * cosA;
+        let y1 = y * cosB - z1 * sinB;
+        let z2 = y * sinB + z1 * cosB;
+
+        const scale = baseR / (2.6 - z2);
+        const px = cx + x1 * scale;
+        const py = cy + y1 * scale;
+        const depth = (z2 + 1) / 2;
+
+        projected.push({ px, py, depth });
+      }
+
+      projected.sort((a, b) => a.depth - b.depth);
+
+      for (let i = 0; i < projected.length; i++) {
+        const { px, py, depth } = projected[i];
+        const alpha = 0.12 + depth * 0.75;
+        const size = 0.6 + depth * 1.6;
+
+        const mix = (px - (cx - baseR)) / (baseR * 2);
+        const r = Math.round(172 + (194 - 172) * mix);
+        const g = Math.round(30 + (110 - 30) * mix);
+        const b = Math.round(214 + (115 - 214) * mix);
+
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        ctx.arc(px, py, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  })();
+
+  function loadSessions() {
+    try {
+      return JSON.parse(localStorage.getItem('music_chat_sessions') || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function renderRecent(list) {
+    const container = document.getElementById('recent-list');
+    container.innerHTML = '';
+    if (list.length === 0) {
+      container.innerHTML = `<div class="recent-item" style="color: var(--text-dim); font-size: 13px; padding: 14px 16px;">
+        표시할 대화가 없어요.
+      </div>`;
+      return;
+    }
+    list.forEach(s => {
+      const item = document.createElement('div');
+      item.className = 'recent-item';
+      item.onclick = () => location.href = '/static/index.html';
+      item.innerHTML = `<span class="recent-dot"></span><span class="recent-text">${s.title || '새 대화'}</span>`;
+      container.appendChild(item);
+    });
+  }
+
+  // 초기 표시: 최근 5개
+  renderRecent(loadSessions().slice(-5).reverse());
+
+  // ---------- 검색 (돋보기) ----------
+  const searchIcon = document.getElementById('search-icon');
+  const searchWrap = document.getElementById('recent-search-wrap');
+  const searchInput = document.getElementById('recent-search-input');
+
+  searchIcon.addEventListener('click', () => {
+    searchIcon.classList.toggle('active');
+    const isOpen = searchWrap.style.display !== 'none';
+    if (isOpen) {
+      searchWrap.style.display = 'none';
+      searchInput.value = '';
+      renderRecent(loadSessions().slice(-5).reverse());
+    } else {
+      searchWrap.style.display = 'block';
+      searchInput.focus();
+    }
+  });
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    const all = loadSessions().slice().reverse();
+    if (!q) {
+      renderRecent(all.slice(0, 5));
+      return;
+    }
+    renderRecent(all.filter(s => (s.title || '').toLowerCase().includes(q)));
+  });
+
+  // ---------- 설정 (초기화) ----------
+  const settingsIcon = document.getElementById('settings-icon');
+  const settingsPanel = document.getElementById('settings-panel');
+
+  settingsIcon.addEventListener('click', (e) => {
+    e.stopPropagation();
+    settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!settingsPanel.contains(e.target) && e.target !== settingsIcon) {
+      settingsPanel.style.display = 'none';
+    }
+  });
+
+  document.getElementById('clear-history-btn').addEventListener('click', () => {
+    if (!confirm('모든 대화 기록을 삭제할까요? 되돌릴 수 없어요.')) return;
+    localStorage.removeItem('music_chat_sessions');
+    renderRecent([]);
+    settingsPanel.style.display = 'none';
+  });
+</script>
+
+</body>
+</html>
