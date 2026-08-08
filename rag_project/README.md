@@ -16,12 +16,10 @@
 |LLM|Claude (`claude-sonnet-5`, `langchain-anthropic`), 장애 시 Ollama 로컬 모델로 폴백(현재 로컬 개발 환경에서만 유효, EC2 배포본은 미지원)|
 |임베딩|`intfloat/multilingual-e5-large` (HuggingFace, 로컬 실행)|
 |벡터스토어|Chroma|
-|아티스트 매칭 보완|`rapidfuzz` (fuzz.ratio, 정확 매칭 실패 시 2차 구제용)|
 |백엔드|FastAPI, `uvicorn`, SSE(`StreamingResponse`)|
 |외부 검색 API|YouTube Data API v3|
 |데이터 소스|HuggingFace `maharshipandya/spotify-tracks-dataset` (약 114,000곡, 114개 장르)|
 |평가|LangSmith (`routing_accuracy` evaluator, jsonl 데이터셋 업로드)|
-|관측성|LangFeather (로컬 실행 흐름 트레이싱, LangSmith와 별개)|
 |프론트엔드|HTML/CSS/JS(프레임워크 없는 단일 파일), Canvas 2D(파티클 오브 애니메이션)|
 |배포|Docker, Docker Compose, AWS EC2 (t3.small + 스왑)|
 |패키지 관리|`uv`|
